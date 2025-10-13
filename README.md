@@ -58,25 +58,9 @@ npm install
 
 ### 3. Configurer la base de données
 
-#### Option A: Vercel Postgres (Recommandé)
 
-```bash
-# Installer Vercel CLI
-npm i -g vercel
 
-# Se connecter à Vercel
-vercel login
-
-# Lier le projet
-vercel link
-
-# Créer la base de données
-vercel postgres create
-
-# Les variables d'environnement seront automatiquement configurées
-```
-
-#### Option B: Supabase
+#### Option A: Supabase
 
 1. Allez sur [supabase.com](https://supabase.com)
 2. Créez un nouveau projet
@@ -131,8 +115,8 @@ Ouvrez [http://localhost:3000](http://localhost:3000) 🎉
 
 ```
 URL: http://localhost:3000/admin
-Email: admin@christshop.com
-Mot de passe: admin123
+Email: 
+Mot de passe: 
 ```
 
 ⚠️ **Changez ce mot de passe en production!**
