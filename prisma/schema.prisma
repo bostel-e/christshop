@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modèle pour les catégories de produits
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+
+  @@map("categories")
+}
+
+// Modèle pour les produits
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  price       Int      // Prix en FCFA (centimes pour éviter les décimales)
+  image       String?  // URL de l'image (UploadThing, Cloudinary, etc.)
+  inStock     Boolean  @default(true)
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([inStock])
+  @@index([createdAt])
+  @@map("products")
+}
+
+// Modèle pour les clients inscrits aux notifications
+model Customer {
+  id           String   @id @default(cuid())
+  name         String
+  phone        String   @unique
+  registeredAt DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([phone])
+  @@map("customers")
+}
+
+// Modèle pour l'authentification admin
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("admins")
+}
+
+// Modèle optionnel pour tracker les sessions admin
+model AdminSession {
+  id        String   @id @default(cuid())
+  adminId   String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
+  @@map("admin_sessions")
+}
+
+// Modèle optionnel pour l'historique des notifications envoyées
+model NotificationLog {
+  id         String   @id @default(cuid())
+  productId  String
+  productName String
+  customerCount Int
+  sentAt     DateTime @default(now())
+
+  @@index([sentAt])
+  @@map("notification_logs")
+}
