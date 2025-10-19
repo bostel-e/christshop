@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { ShoppingCart, Search, User, ShieldCheck, Sparkles, Star, Zap, Package, Crown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -89,14 +89,33 @@ export default function HomePage() {
     setCart((prev) => prev.map((item) => (item.id === productId ? { ...item, quantity } : item)))
   }
 
-  const filteredProducts = products
-    .filter((product) => product.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    .filter((product) => !selectedCategory || product.category === selectedCategory)
-
+  // Nombre total d'articles dans le panier
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    return products
+      .filter((product) => {
+        // support name | title | description
+        const text = (
+          (product as any).name ??
+          (product as any).title ??
+          ""
+        ).toString().toLowerCase()
+        const desc = ((product as any).description ?? "").toString().toLowerCase()
+        const matchesQuery = q === "" ? true : (text + " " + desc).includes(q)
+        const matchesCategory = !selectedCategory || product.category === selectedCategory
+        return matchesQuery && matchesCategory
+      })
+  }, [products, searchQuery, selectedCategory])
+
+  // Mettre à jour visibleProducts quand le filtre change
+  useEffect(() => {
+    setVisibleProducts(filteredProducts.slice(0, PRODUCTS_PAGE_SIZE))
+  }, [filteredProducts])
+
   const loadMoreProducts = () => {
-    setVisibleProducts(products.slice(0, visibleProducts.length + PRODUCTS_PAGE_SIZE))
+    setVisibleProducts(filteredProducts.slice(0, visibleProducts.length + PRODUCTS_PAGE_SIZE))
   }
 
   if (isLoading) {
@@ -111,10 +130,11 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
+    <div className="min-h-screen bg-background/10 backdrop-blur-sm overflow-hidden">
       {/* Navigation Ultra-Premium */}
-      <header className="fixed top-0 z-50 w-full border-b border-white/10 bg-background/70 backdrop-blur-2xl transition-all duration-300">
-        <div className="container mx-auto flex h-24 items-center justify-between px-6 lg:px-16">
+      <header className="fixed top-0 z-50 w-full border-b border-white/5 bg-background/30 backdrop-blur-2xl transition-all duration-300">
+        <div className="container mx-auto flex h-24 items-center px-6 lg:px-16">
+          {/* Logo */}
           <Link href="/" className="group relative">
             <div className="absolute -inset-2 bg-gradient-to-r from-primary via-accent to-primary rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
             <div className="relative flex items-center gap-4">
@@ -130,6 +150,31 @@ export default function HomePage() {
             </div>
           </Link>
 
+          {/* Search (dans le header) */}
+          <div className="flex-1 hidden md:flex items-center justify-center px-4">
+            <div className="relative w-full max-w-xl">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Recherchez votre produit de rêve..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-10 rounded-full border-0 bg-transparent pl-12 pr-28 text-sm"
+              />
+              <Button
+                size="sm"
+                className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-primary to-accent px-4 shadow-lg hover:shadow-xl transition-all duration-200"
+                onClick={() => {
+                  setSelectedCategory(null)
+                  setVisibleProducts(filteredProducts.slice(0, PRODUCTS_PAGE_SIZE))
+                  document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })
+                }}
+              >
+                Rechercher
+              </Button>
+            </div>
+          </div>
+
           <div className="flex items-center gap-2 lg:gap-4">
             <Button 
               variant="ghost" 
@@ -143,8 +188,8 @@ export default function HomePage() {
 
             <Link href="/admin">
               <Button variant="ghost" size="sm" className="gap-2 rounded-full hover:bg-primary/10 transition-all duration-300">
-                <ShieldCheck className="h-4 w-4" />
-                <span className="hidden sm:inline font-medium">Admin</span>
+                
+                <span className="hidden sm:inline font-medium"></span>
               </Button>
             </Link>
 
@@ -182,7 +227,7 @@ export default function HomePage() {
         <div className="container relative z-10 mx-auto px-6 lg:px-16">
           <div className="mx-auto max-w-5xl text-center">
             {/* Badge Premium Animé */}
-            <div className="mb-12 inline-flex items-center gap-3 rounded-full border border-primary/30 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 px-8 py-3 backdrop-blur-xl shadow-2xl shadow-primary/20 animate-float">
+            <div className="mt-8 mb-12 inline-flex items-center gap-3 rounded-full border border-primary/30 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 px-8 py-3 backdrop-blur-xl shadow-2xl shadow-primary/20 animate-float">
               <Sparkles className="h-5 w-5 text-primary animate-spin-slow" />
               <span className="font-semibold tracking-wide">Collection Exclusive 2025</span>
               <Zap className="h-5 w-5 text-accent animate-pulse" />
@@ -211,7 +256,7 @@ export default function HomePage() {
             <div className="mx-auto mb-16 max-w-3xl">
               <div className="group relative">
                 <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-primary via-accent to-primary blur-xl opacity-20 group-hover:opacity-40 transition-all duration-500" />
-                <div className="relative flex items-center overflow-hidden rounded-full border border-white/20 bg-white/5 backdrop-blur-2xl shadow-2xl">
+                <div className="relative flex items-center overflow-hidden rounded-full border border-white/10 bg-white/10 backdrop-blur-sm shadow-lg">
                   <Search className="absolute left-7 h-6 w-6 text-muted-foreground" />
                   <Input
                     type="search"
@@ -254,11 +299,11 @@ export default function HomePage() {
             </div>
 
             {/* Features Cards Luxueuses */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto -mt-10 pt-6 mb-16">
               <div className="group relative rounded-3xl border border-white/10 bg-gradient-to-br from-background via-primary/5 to-background p-8 backdrop-blur-xl shadow-2xl hover:shadow-primary/20 transition-all duration-500 hover:scale-105">
                 <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative">
-                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent shadow-lg">
+                <div className="relative ">
+                  <div className=" mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent shadow-lg">
                     <Package className="h-8 w-8 text-white" />
                   </div>
                   <h3 className="mb-2 text-2xl font-bold">{products.length}+</h3>
@@ -300,7 +345,7 @@ export default function HomePage() {
       </section>
 
       {/* Section Produits Premium */}
-      <section className="relative py-32">
+      <section id="products" className="relative py-32">
         <div className="container mx-auto px-6 lg:px-16">
           {/* En-tête Section */}
           <div className="mb-20 text-center">

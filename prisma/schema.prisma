@@ -54,12 +54,13 @@ model Customer {
 
 // Modèle pour l'authentification admin
 model Admin {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String         @id @default(cuid())
+  email        String         @unique
   passwordHash String
   name         String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sessions     AdminSession[] // Ajout de la relation
 
   @@map("admins")
 }
@@ -68,12 +69,14 @@ model Admin {
 model AdminSession {
   id        String   @id @default(cuid())
   adminId   String
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade) // Ajout de la relation
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
 
   @@index([token])
   @@index([expiresAt])
+  @@index([adminId]) // Ajout de l'index
   @@map("admin_sessions")
 }
 
