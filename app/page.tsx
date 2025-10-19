@@ -21,7 +21,10 @@ export default function HomePage() {
   const [cart, setCart] = useState<Array<Product & { quantity: number }>>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isUserLoginOpen, setIsUserLoginOpen] = useState(false)
+  
   const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery)
+
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -38,27 +41,19 @@ export default function HomePage() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
-  // Charger les produits et catégories depuis l'API
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true)
+    const loadInitialData = async () => {
+      setIsLoading(true) 
       try {
-        const [productsData, categoriesData] = await Promise.all([
-          getProducts(),
-          getCategories()
-        ])
-        setProducts(productsData)
+        const categoriesData = await getCategories() 
         setCategories(categoriesData)
-        setVisibleProducts(productsData.slice(0, PRODUCTS_PAGE_SIZE))
       } catch (error) {
-        console.error("Erreur lors du chargement:", error)
-      } finally {
-        setIsLoading(false)
+        console.error("Erreur lors du chargement des catégories:", error)
       }
     }
-    loadData()
+    
+    loadInitialData()
 
-    // Vérifier si l'utilisateur est connecté
     const loggedIn = localStorage.getItem("christshop_customer_registered")
     const savedName = localStorage.getItem("christshop_customer_name")
     if (loggedIn === "true" && savedName) {
@@ -66,6 +61,66 @@ export default function HomePage() {
       setUserName(savedName)
     }
   }, [])
+
+  // Debounce automatique
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+    }, 300)
+
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [searchQuery])
+
+  // Fonction pour forcer la recherche immédiatement
+  const handleSearchClick = () => {
+    setDebouncedSearch(searchQuery) // Force la mise à jour immédiate
+    setSelectedCategory(null)
+    document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  // Charger les produits
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true)
+      try {
+        const categoryId = categories.find(c => c.name === selectedCategory)?.id
+        
+        // Construction des filtres sans "undefined"
+        const filters: { search?: string; categoryId?: string } = {}
+        
+        if (debouncedSearch && debouncedSearch.trim() !== '') {
+          filters.search = debouncedSearch.trim()
+        }
+        
+        if (categoryId) {
+          filters.categoryId = categoryId
+        }
+
+        console.log('🔍 Recherche avec filtres:', filters) // Debug
+
+        const productsData = await getProducts(filters) 
+        
+        console.log('📦 Produits reçus:', productsData) // Debug
+        console.log('📊 Nombre de produits:', productsData.length) // Debug
+        
+        setProducts(productsData) 
+        setVisibleProducts(productsData.slice(0, PRODUCTS_PAGE_SIZE))
+
+      } catch (error) {
+        console.error("Erreur lors du chargement des produits:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    // Charger les produits dès que les catégories sont prêtes
+    if (categories.length > 0) {
+      fetchProducts()
+    }
+
+  }, [debouncedSearch, selectedCategory, categories])
 
   const addToCart = (product: Product) => {
     setCart((prev) => {
@@ -89,36 +144,17 @@ export default function HomePage() {
     setCart((prev) => prev.map((item) => (item.id === productId ? { ...item, quantity } : item)))
   }
 
-  // Nombre total d'articles dans le panier
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  const filteredProducts = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    return products
-      .filter((product) => {
-        // support name | title | description
-        const text = (
-          (product as any).name ??
-          (product as any).title ??
-          ""
-        ).toString().toLowerCase()
-        const desc = ((product as any).description ?? "").toString().toLowerCase()
-        const matchesQuery = q === "" ? true : (text + " " + desc).includes(q)
-        const matchesCategory = !selectedCategory || product.category === selectedCategory
-        return matchesQuery && matchesCategory
-      })
-  }, [products, searchQuery, selectedCategory])
-
-  // Mettre à jour visibleProducts quand le filtre change
   useEffect(() => {
-    setVisibleProducts(filteredProducts.slice(0, PRODUCTS_PAGE_SIZE))
-  }, [filteredProducts])
+    setVisibleProducts(products.slice(0, PRODUCTS_PAGE_SIZE))
+  }, [products])
 
   const loadMoreProducts = () => {
-    setVisibleProducts(filteredProducts.slice(0, visibleProducts.length + PRODUCTS_PAGE_SIZE))
+    setVisibleProducts(products.slice(0, visibleProducts.length + PRODUCTS_PAGE_SIZE))
   }
 
-  if (isLoading) {
+  if (isLoading && products.length === 0 && categories.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -131,10 +167,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background/10 backdrop-blur-sm overflow-hidden">
-      {/* Navigation Ultra-Premium */}
       <header className="fixed top-0 z-50 w-full border-b border-white/5 bg-background/30 backdrop-blur-2xl transition-all duration-300">
         <div className="container mx-auto flex h-24 items-center px-6 lg:px-16">
-          {/* Logo */}
           <Link href="/" className="group relative">
             <div className="absolute -inset-2 bg-gradient-to-r from-primary via-accent to-primary rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
             <div className="relative flex items-center gap-4">
@@ -150,7 +184,6 @@ export default function HomePage() {
             </div>
           </Link>
 
-          {/* Search (dans le header) */}
           <div className="flex-1 hidden md:flex items-center justify-center px-4">
             <div className="relative w-full max-w-xl">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -159,16 +192,17 @@ export default function HomePage() {
                 placeholder="Recherchez votre produit de rêve..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearchClick()
+                  }
+                }}
                 className="h-10 rounded-full border-0 bg-transparent pl-12 pr-28 text-sm"
               />
               <Button
                 size="sm"
                 className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-primary to-accent px-4 shadow-lg hover:shadow-xl transition-all duration-200"
-                onClick={() => {
-                  setSelectedCategory(null)
-                  setVisibleProducts(filteredProducts.slice(0, PRODUCTS_PAGE_SIZE))
-                  document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })
-                }}
+                onClick={handleSearchClick}
               >
                 Rechercher
               </Button>
@@ -188,7 +222,6 @@ export default function HomePage() {
 
             <Link href="/admin">
               <Button variant="ghost" size="sm" className="gap-2 rounded-full hover:bg-primary/10 transition-all duration-300">
-                
                 <span className="hidden sm:inline font-medium"></span>
               </Button>
             </Link>
@@ -209,9 +242,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Hero Spectaculaire avec Effet Parallax */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-24">
-        {/* Arrière-plan animé ultra-moderne */}
         <div className="absolute inset-0">
           <div 
             className="absolute top-0 left-1/4 h-[600px] w-[600px] rounded-full bg-primary/30 blur-[120px] animate-pulse"
@@ -226,14 +257,12 @@ export default function HomePage() {
 
         <div className="container relative z-10 mx-auto px-6 lg:px-16">
           <div className="mx-auto max-w-5xl text-center">
-            {/* Badge Premium Animé */}
             <div className="mt-8 mb-12 inline-flex items-center gap-3 rounded-full border border-primary/30 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 px-8 py-3 backdrop-blur-xl shadow-2xl shadow-primary/20 animate-float">
               <Sparkles className="h-5 w-5 text-primary animate-spin-slow" />
               <span className="font-semibold tracking-wide">Collection Exclusive 2025</span>
               <Zap className="h-5 w-5 text-accent animate-pulse" />
             </div>
 
-            {/* Titre Monumental */}
             <h1 className="mb-8 font-serif text-6xl font-bold leading-[1.1] tracking-tight lg:text-8xl">
               L'Art de
               <br />
@@ -252,7 +281,6 @@ export default function HomePage() {
               <span className="font-semibold text-foreground"> Livraison rapide via WhatsApp.</span>
             </p>
 
-            {/* Barre de recherche Premium avec Glassmorphism */}
             <div className="mx-auto mb-16 max-w-3xl">
               <div className="group relative">
                 <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-primary via-accent to-primary blur-xl opacity-20 group-hover:opacity-40 transition-all duration-500" />
@@ -264,10 +292,16 @@ export default function HomePage() {
                     className="h-20 rounded-full border-0 bg-transparent pl-16 pr-32 text-lg placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:ring-offset-0"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSearchClick()
+                      }
+                    }}
                   />
                   <Button 
                     size="lg"
                     className="absolute right-2 rounded-full bg-gradient-to-r from-primary to-accent px-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                    onClick={handleSearchClick}
                   >
                     Rechercher
                   </Button>
@@ -275,13 +309,16 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Catégories Rapides */}
             <div className="flex flex-wrap items-center justify-center gap-3 mb-16">
               <Button
                 variant="outline"
                 size="lg"
                 className="rounded-full border-primary/30 bg-background/50 backdrop-blur-sm hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300 hover:scale-105 shadow-lg"
-                onClick={() => setSelectedCategory(null)}
+                onClick={() => {
+                  setSelectedCategory(null)
+                  setSearchQuery("")
+                  setDebouncedSearch("")
+                }}
               >
                 Tout Voir
               </Button>
@@ -291,14 +328,17 @@ export default function HomePage() {
                   variant="outline"
                   size="lg"
                   className="rounded-full border-primary/30 bg-background/50 backdrop-blur-sm hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300 hover:scale-105 shadow-lg"
-                  onClick={() => setSelectedCategory(cat.name)}
+                  onClick={() => {
+                    setSelectedCategory(cat.name)
+                    setSearchQuery("")
+                    setDebouncedSearch("")
+                  }}
                 >
                   {cat.name}
                 </Button>
               ))}
             </div>
 
-            {/* Features Cards Luxueuses */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto -mt-10 pt-6 mb-16">
               <div className="group relative rounded-3xl border border-white/10 bg-gradient-to-br from-background via-primary/5 to-background p-8 backdrop-blur-xl shadow-2xl hover:shadow-primary/20 transition-all duration-500 hover:scale-105">
                 <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -333,10 +373,10 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+
           </div>
         </div>
 
-        {/* Scroll Indicator */}
         <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce">
           <div className="h-12 w-8 rounded-full border-2 border-primary/30 flex items-start justify-center p-2">
             <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
@@ -344,10 +384,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Section Produits Premium */}
       <section id="products" className="relative py-32">
         <div className="container mx-auto px-6 lg:px-16">
-          {/* En-tête Section */}
           <div className="mb-20 text-center">
             <Badge className="mb-6 rounded-full px-6 py-2 text-sm">
               {selectedCategory || "Tous nos produits"}
@@ -359,11 +397,10 @@ export default function HomePage() {
               </span>
             </h2>
             <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-              {filteredProducts.length} produit{filteredProducts.length > 1 ? "s" : ""} d'exception pour vous
+              {products.length} produit{products.length > 1 ? "s" : ""} d'exception pour vous
             </p>
           </div>
 
-          {/* Grille de Produits */}
           {visibleProducts.length > 0 ? (
             <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {visibleProducts.map((product, index) => (
@@ -379,15 +416,18 @@ export default function HomePage() {
           ) : (
             <div className="mx-auto max-w-2xl rounded-3xl border-2 border-dashed border-border/50 bg-muted/30 p-20 text-center backdrop-blur-sm">
               <Search className="mx-auto mb-6 h-24 w-24 text-muted-foreground/20" />
-              <h3 className="mb-3 text-2xl font-bold">Aucun produit trouvé</h3>
+              <h3 className="mb-3 text-2xl font-bold">
+                {isLoading ? "Chargement..." : "Aucun produit trouvé"}
+              </h3>
               <p className="text-muted-foreground mb-6">
-                Essayez de modifier votre recherche ou explorez nos catégories
+                {!isLoading && "Essayez de modifier votre recherche ou explorez nos catégories"}
               </p>
               <Button
                 size="lg"
                 className="rounded-full"
                 onClick={() => {
                   setSearchQuery("")
+                  setDebouncedSearch("")
                   setSelectedCategory(null)
                 }}
               >
@@ -395,7 +435,8 @@ export default function HomePage() {
               </Button>
             </div>
           )}
-          {visibleProducts.length < filteredProducts.length && (
+          
+          {visibleProducts.length < products.length && (
             <div className="flex justify-center mt-8">
               <Button onClick={loadMoreProducts}>Charger plus</Button>
             </div>
@@ -403,7 +444,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer Ultra-Premium */}
       <footer className="relative overflow-hidden border-t border-white/10 bg-gradient-to-b from-background to-muted/50 py-20">
         <div className="absolute inset-0">
           <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />

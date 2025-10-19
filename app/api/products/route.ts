@@ -22,22 +22,48 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const inStock = searchParams.get('inStock')
 
+    console.log('🔍 API - Paramètres reçus:', { categoryId, search, inStock })
+
+    // Construction dynamique du where
     const where: any = {}
 
+    // Filtre par catégorie
     if (categoryId) {
       where.categoryId = categoryId
     }
 
-    if (search) {
+    // Filtre par recherche (CORRIGÉ - recherche dans nom, description ET catégorie)
+    if (search && search.trim() !== '') {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
+        { 
+          name: { 
+            contains: search.trim(), 
+            mode: 'insensitive' 
+          } 
+        },
+        { 
+          description: { 
+            contains: search.trim(), 
+            mode: 'insensitive' 
+          } 
+        },
+        {
+          category: {
+            name: {
+              contains: search.trim(),
+              mode: 'insensitive'
+            }
+          }
+        }
       ]
     }
 
-    if (inStock !== null) {
+    // Filtre par disponibilité
+    if (inStock !== null && inStock !== undefined) {
       where.inStock = inStock === 'true'
     }
+
+    console.log('🗄️ API - Where clause:', JSON.stringify(where, null, 2))
 
     const products = await prisma.product.findMany({
       where,
@@ -48,6 +74,8 @@ export async function GET(request: NextRequest) {
         createdAt: 'desc',
       },
     })
+
+    console.log(`✅ API - Produits trouvés: ${products.length}`)
 
     // Transformer les données pour correspondre au format frontend
     const transformedProducts = products.map(product => ({
@@ -65,7 +93,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(transformedProducts)
   } catch (error) {
-    console.error('Erreur GET /api/products:', error)
+    console.error('❌ Erreur GET /api/products:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la récupération des produits' },
       { status: 500 }
