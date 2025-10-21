@@ -1,4 +1,4 @@
-// File: /Users/admin/Downloads/projet memoire/provalt/christshop-complete/app/api/categories/route.ts
+// File: /Users/admin/Dev/provalt/christshop-complete/app/api/categories/route.ts
 import * as entry from '../../../../../app/api/categories/route.js'
 import type { NextRequest } from 'next/server.js'
 

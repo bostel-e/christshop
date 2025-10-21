@@ -1,4 +1,4 @@
-// File: /Users/admin/Downloads/projet memoire/provalt/christshop-complete/app/admin/page.tsx
+// File: /Users/admin/Dev/provalt/christshop-complete/app/admin/page.tsx
 import * as entry from '../../../../app/admin/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

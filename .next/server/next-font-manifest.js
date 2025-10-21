@@ -1,1 +1,1 @@
-self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/Users/admin/Downloads/projet memoire/provalt/christshop-complete/app/layout\":[\"static/media/e4af272ccee01ff0-s.p.woff2\",\"static/media/b957ea75a84b6ea7-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"
+self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/Users/admin/Dev/provalt/christshop-complete/app/layout\":[\"static/media/e4af272ccee01ff0-s.p.woff2\",\"static/media/b957ea75a84b6ea7-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"
